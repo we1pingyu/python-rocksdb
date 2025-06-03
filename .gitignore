@@ -102,3 +102,7 @@ cmake-build-*
 third-party/folly/
 .cache
 *.sublime-*
+
+rocksdb_pybinding/build
+rocksdb_pybinding/custom_rocksdb.egg-info
+rocksdb_pybinding/*.so
