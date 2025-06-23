@@ -52,41 +52,49 @@ public:
         return py::bytes(value);
     }
 
-    py::dict multiget(const std::vector<std::string> &keys)
-    {
-        py::dict result;
-        if (!db)
-            return result;
+    py::dict multiget(const std::vector<py::bytes> &keys)
+	{
+		py::dict result;
+		if (!db)
+			return result;
 
-        std::vector<rocksdb::Slice> slices;
-        for (const auto &k : keys)
-            slices.emplace_back(k);
+		std::vector<rocksdb::Slice> slices;
+		std::vector<std::string> key_storage;  // to hold memory for keys
 
-        std::vector<std::string> values;
-        std::vector<rocksdb::Status> statuses = db->MultiGet(rocksdb::ReadOptions(), slices, &values);
+		for (const auto &k : keys)
+		{
+			std::string key_str = static_cast<std::string>(k);
+			key_storage.push_back(key_str);               // store copy
+			slices.emplace_back(key_storage.back());      // make slice
+		}
 
-        for (size_t i = 0; i < keys.size(); ++i)
-        {
-            if (statuses[i].ok())
-            {
-                result[py::str(keys[i])] = py::str(values[i]);
-            }
-            else
-            {
-                result[py::str(keys[i])] = py::none();  // optional: include missing keys explicitly
-            }
-        }
+		std::vector<std::string> values;
+		std::vector<rocksdb::Status> statuses = db->MultiGet(rocksdb::ReadOptions(), slices, &values);
 
-        return result;
-    }
+		for (size_t i = 0; i < keys.size(); ++i)
+		{
+			if (statuses[i].ok())
+			{
+				result[keys[i]] = py::bytes(values[i]);  // return bytes
+			}
+			else
+			{
+				result[keys[i]] = py::none();
+			}
+		}
 
-    bool delete_key(const std::string &key)
-    {
-        if (!db)
-            return false;
-        rocksdb::Status status = db->Delete(rocksdb::WriteOptions(), key);
-        return status.ok();
-    }
+		return result;
+	}
+
+	bool delete_key(const py::bytes &key)
+	{
+		if (!db)
+			return false;
+		std::string key_str = static_cast<std::string>(key);
+		rocksdb::Status status = db->Delete(rocksdb::WriteOptions(), key_str);
+		return status.ok();
+	}
+
 
     void set_custom_option(int value)
     {
