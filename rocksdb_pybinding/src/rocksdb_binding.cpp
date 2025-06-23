@@ -33,21 +33,51 @@ public:
         return status.ok();
     }
 
-    bool put(const std::string &key, const std::string &value)
-    {
-        if (!db)
-            return false;
-        rocksdb::Status status = db->Put(rocksdb::WriteOptions(), key, value);
+    bool put(const py::bytes& key, const py::bytes& value) {
+        if (!db) return false;
+        std::string k = key;
+        std::string v = value;
+        rocksdb::Status status = db->Put(rocksdb::WriteOptions(), k, v);
         return status.ok();
     }
 
-    std::string get(const std::string &key)
-    {
-        if (!db)
-            return "";
+    py::object get(const py::bytes& key) {
+        if (!db) return py::none();
+        std::string k = key;
         std::string value;
-        rocksdb::Status status = db->Get(rocksdb::ReadOptions(), key, &value);
-        return status.ok() ? value : "";
+        rocksdb::Status status = db->Get(rocksdb::ReadOptions(), k, &value);
+        if (!status.ok()) {
+            return py::none();
+        }
+        return py::bytes(value);
+    }
+
+    py::dict multiget(const std::vector<std::string> &keys)
+    {
+        py::dict result;
+        if (!db)
+            return result;
+
+        std::vector<rocksdb::Slice> slices;
+        for (const auto &k : keys)
+            slices.emplace_back(k);
+
+        std::vector<std::string> values;
+        std::vector<rocksdb::Status> statuses = db->MultiGet(rocksdb::ReadOptions(), slices, &values);
+
+        for (size_t i = 0; i < keys.size(); ++i)
+        {
+            if (statuses[i].ok())
+            {
+                result[py::str(keys[i])] = py::str(values[i]);
+            }
+            else
+            {
+                result[py::str(keys[i])] = py::none();  // optional: include missing keys explicitly
+            }
+        }
+
+        return result;
     }
 
     bool delete_key(const std::string &key)
@@ -58,10 +88,8 @@ public:
         return status.ok();
     }
 
-    // 添加你自定义的方法
     void set_custom_option(int value)
     {
-        // 这里可以调用你修改的RocksDB内部代码
         options.max_open_files = value;
     }
 };
@@ -75,10 +103,10 @@ PYBIND11_MODULE(rocksdb_binding, m)
         .def("open", &RocksDBWrapper::open)
         .def("put", &RocksDBWrapper::put)
         .def("get", &RocksDBWrapper::get)
+        .def("multiget", &RocksDBWrapper::multiget)
         .def("delete", &RocksDBWrapper::delete_key)
         .def("set_custom_option", &RocksDBWrapper::set_custom_option);
 
-    // 绑定RocksDB的原生类型（可选）
     py::class_<rocksdb::Options>(m, "Options")
         .def(py::init<>())
         .def_readwrite("create_if_missing", &rocksdb::Options::create_if_missing)

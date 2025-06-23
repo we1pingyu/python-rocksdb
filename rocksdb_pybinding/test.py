@@ -21,5 +21,9 @@ if db.open("/tmp/test_db"):
     db.delete("key2")
     value = db.get("key2")
     print(value)
+    
+    values = db.multiget(["key1", "key2"])
+    print(f"Multiget values: {values}")
+    
 else:
     print("Failed to open database")
