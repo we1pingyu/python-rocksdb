@@ -59,7 +59,7 @@ public:
 			return result;
 
 		std::vector<rocksdb::Slice> slices;
-		std::vector<std::string> key_storage;  // to hold memory for keys
+		std::vector<std::string> key_storage(keys.size());
 
 		for (const auto &k : keys)
 		{
