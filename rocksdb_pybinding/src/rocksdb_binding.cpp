@@ -4,6 +4,7 @@
 #include <rocksdb/db.h>
 #include <rocksdb/options.h>
 #include <rocksdb/status.h>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -29,7 +30,11 @@ public:
 
     bool open(const std::string &db_path)
     {
+        std::cout << "C++ opening RocksDB at: " << db_path << std::endl;
         rocksdb::Status status = rocksdb::DB::Open(options, db_path, &db);
+        if (!status.ok()) {
+            std::cout << "Failed to open RocksDB: " << status.ToString() << std::endl;
+        }
         return status.ok();
     }
 
@@ -59,7 +64,7 @@ public:
 			return result;
 
 		std::vector<rocksdb::Slice> slices;
-		std::vector<std::string> key_storage;  // to hold memory for keys
+		std::vector<std::string> key_storage(keys.size());
 
 		for (const auto &k : keys)
 		{
