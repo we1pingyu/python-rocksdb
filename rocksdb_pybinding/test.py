@@ -14,7 +14,8 @@ if db.open(os.path.expanduser("~/test_db")):
     value = db.get(b"key1")
 
     print(f"key1: {value}")
-
+    assert db.probe(b"key1") == True
+    assert db.probe(b"key3") == False
     # 使用自定义选项
     db.set_custom_option(1000)
 

@@ -2519,6 +2519,11 @@ void Version::Get(const ReadOptions& read_options, const LookupKey& k,
                                   fp.GetHitFileLevel());
 
         if (is_blob_index && do_merge && (value || columns)) {
+          if (!read_options.get_blob_value)
+          {
+            *status = Status::OK();
+            return;
+          }
           Slice blob_index =
               value ? *value
                     : WideColumnsHelper::GetDefaultColumn(columns->columns());
