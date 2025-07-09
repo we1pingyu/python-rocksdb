@@ -18,6 +18,8 @@ public:
     RocksDBWrapper() : db(nullptr)
     {
         options.create_if_missing = true;
+        options.enable_blob_files = true;
+        options.prepopulate_blob_cache = rocksdb::PrepopulateBlobCache::kFlushOnly;
     }
 
     ~RocksDBWrapper()
@@ -39,7 +41,7 @@ public:
     }
 
     bool put(const py::bytes& key, const py::bytes& value) {
-        if (!db) return false;
+        if (!db) throw std::runtime_error("Database not opened");
         std::string k = key;
         std::string v = value;
         rocksdb::Status status = db->Put(rocksdb::WriteOptions(), k, v);
@@ -47,7 +49,7 @@ public:
     }
 
     py::object get(const py::bytes& key) {
-        if (!db) return py::none();
+        if (!db) throw std::runtime_error("Database not opened");
         std::string k = key;
         std::string value;
         rocksdb::Status status = db->Get(rocksdb::ReadOptions(), k, &value);
@@ -57,11 +59,27 @@ public:
         return py::bytes(value);
     }
 
+    bool probe(const py::bytes &key) {
+        if (!db) throw std::runtime_error("Database not opened");
+        std::string k = key;
+        std::string value;
+        auto read_options = rocksdb::ReadOptions();
+        read_options.get_blob_value = false;  
+        rocksdb::Status status = db->Get(read_options, k, &value);
+        if (status.IsNotFound()) {
+            return false;  // Key does not exist
+        } else if (status.ok()) {
+            return true;   // Key exists
+        } else {
+            throw std::runtime_error("Error probing key: " + status.ToString());
+        }
+    }
+
     py::dict multiget(const std::vector<py::bytes> &keys)
 	{
 		py::dict result;
 		if (!db)
-			return result;
+            throw std::runtime_error("Database not opened");
 
 		std::vector<rocksdb::Slice> slices;
 		std::vector<std::string> key_storage(keys.size());
@@ -94,7 +112,7 @@ public:
 	bool delete_key(const py::bytes &key)
 	{
 		if (!db)
-			return false;
+            throw std::runtime_error("Database not opened");
 		std::string key_str = static_cast<std::string>(key);
 		rocksdb::Status status = db->Delete(rocksdb::WriteOptions(), key_str);
 		return status.ok();
@@ -118,6 +136,7 @@ PYBIND11_MODULE(rocksdb_binding, m)
         .def("get", &RocksDBWrapper::get)
         .def("multiget", &RocksDBWrapper::multiget)
         .def("delete", &RocksDBWrapper::delete_key)
+        .def("probe", &RocksDBWrapper::probe)
         .def("set_custom_option", &RocksDBWrapper::set_custom_option);
 
     py::class_<rocksdb::Options>(m, "Options")

@@ -2081,6 +2081,8 @@ struct ReadOptions {
   // an application level request that results in multiple RocksDB api calls
   const std::string* request_id = nullptr;
 
+  bool get_blob_value = true;
+
   // *** END per-request settings for internal team use only ***
 
   ReadOptions() {}
