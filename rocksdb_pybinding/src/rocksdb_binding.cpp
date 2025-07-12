@@ -109,6 +109,24 @@ public:
 		return result;
 	}
 
+    bool batch_put(const std::vector<py::bytes>& keys, const std::vector<py::bytes>& values) {
+        if (!db) throw std::runtime_error("Database not opened");
+        if (keys.size() != values.size()) {
+            throw std::runtime_error("Keys and values must have the same length");
+        }
+
+        rocksdb::WriteBatch batch;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            std::string k = static_cast<std::string>(keys[i]);
+            std::string v = static_cast<std::string>(values[i]);
+            batch.Put(k, v);
+        }
+
+        rocksdb::Status status = db->Write(rocksdb::WriteOptions(), &batch);
+        return status.ok();
+    }
+
+
 	bool delete_key(const py::bytes &key)
 	{
 		if (!db)
@@ -137,6 +155,7 @@ PYBIND11_MODULE(rocksdb_binding, m)
         .def("multiget", &RocksDBWrapper::multiget)
         .def("delete", &RocksDBWrapper::delete_key)
         .def("probe", &RocksDBWrapper::probe)
+        .def("batch_put", &RocksDBWrapper::batch_put)
         .def("set_custom_option", &RocksDBWrapper::set_custom_option);
 
     py::class_<rocksdb::Options>(m, "Options")
