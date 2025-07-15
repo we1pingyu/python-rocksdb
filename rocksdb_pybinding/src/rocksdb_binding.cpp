@@ -91,22 +91,44 @@ public:
 			slices.emplace_back(key_storage.back());      // make slice
 		}
 
-		std::vector<std::string> values;
-		std::vector<rocksdb::Status> statuses = db->MultiGet(rocksdb::ReadOptions(), slices, &values);
+        if (false) {
+            std::vector<std::string> values;
+            std::vector<rocksdb::Status> statuses =
+                db->MultiGet(rocksdb::ReadOptions(), slices, &values);
 
-		for (size_t i = 0; i < keys.size(); ++i)
-		{
-			if (statuses[i].ok())
-			{
-				result[keys[i]] = py::bytes(values[i]);  // return bytes
-			}
-			else
-			{
-				result[keys[i]] = py::none();
-			}
-		}
+            for (size_t i = 0; i < keys.size(); ++i) {
+                if (statuses[i].ok()) {
+                    result[keys[i]] = py::bytes(values[i]);  // return bytes
+                } else {
+                    result[keys[i]] = py::none();
+                }
+            }
+        } else {
+            // for (size_t i = 0; i < slices.size() - 1; ++i) {
+            //     if (slices[i].compare(slices[i+1]) >= 0)
+            //         throw std::runtime_error("Keys must be sorted in ascending order");
+            // }
 
-		return result;
+            std::vector<std::string> values;
+            auto column_families = std::vector<rocksdb::ColumnFamilyHandle*>(slices.size(), db->DefaultColumnFamily());
+            auto statuses = db->MultiGet(rocksdb::ReadOptions(), column_families, slices, &values, nullptr);
+
+            for (size_t i = 0; i < keys.size(); ++i) {
+                auto value = values[i];
+                if (statuses[i].ok()) {
+                    if (value.size() == 0) {
+                        throw std::runtime_error("Empty value for key: " + static_cast<std::string>(keys[i]));
+                    } else {
+                        // Convert to bytes and store in result
+                        result[keys[i]] = py::bytes(value);
+                    }
+                } else {
+                    result[keys[i]] = py::none();
+                }
+            }
+        }
+
+        return result;
 	}
 
     bool batch_put(const std::vector<py::bytes>& keys, const std::vector<py::bytes>& values) {
