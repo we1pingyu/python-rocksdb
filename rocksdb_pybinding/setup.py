@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from pybind11 import get_cmake_dir
 import pybind11
@@ -25,8 +25,16 @@ ext_modules = [
 
 setup(
     name="custom_rocksdb",
+    version="0.1.0",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
+    packages=find_packages(),
+    py_modules=["safetensor_helper"],  # 添加Python helper模块
+    install_requires=[
+        "torch",
+        "safetensors", 
+        "numpy",
+    ],
     zip_safe=False,
     python_requires=">=3.6",
 )
