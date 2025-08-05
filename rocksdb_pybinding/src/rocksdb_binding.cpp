@@ -44,6 +44,9 @@ class RocksDBWrapper {
     std::string k = key;
     std::string v = value;
     rocksdb::Status status = db->Put(rocksdb::WriteOptions(), k, v);
+    if (!status.ok()) {
+      std::cout << "Failed to put key, status: " << status.ToString() << std::endl;
+    }
     return status.ok();
   }
 
@@ -142,7 +145,7 @@ PYBIND11_MODULE(rocksdb_binding, m) {
   m.doc() = "Custom RocksDB Python binding";
 
   py::class_<RocksDBWrapper>(m, "RocksDB")
-      .def(py::init<>())
+      .def(py::init<bool>(), py::arg("blobdb") = false)
       .def("open", &RocksDBWrapper::open)
       .def("put", &RocksDBWrapper::put)
       .def("get", &RocksDBWrapper::get)
